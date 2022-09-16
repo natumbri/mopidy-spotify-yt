@@ -3,9 +3,9 @@ import pathlib
 import threading
 
 import pykka
+import spotify
 from mopidy import backend, httpclient
 
-import spotify
 from mopidy_spotify import Extension, library, playback, playlists, web
 
 logger = logging.getLogger(__name__)

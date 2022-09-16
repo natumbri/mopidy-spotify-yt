@@ -1,6 +1,7 @@
 import logging
 
 import spotify
+
 from mopidy_spotify import browse, playlists, translator, utils
 from mopidy_spotify.web import LinkType, WebLink
 
@@ -43,8 +44,11 @@ def lookup(config, session, web_client, uri):
 
 
 def _lookup_track(config, sp_link):
+
     sp_track = sp_link.as_track()
+
     sp_track.load(config["timeout"])
+
     track = translator.to_track(sp_track, bitrate=config["bitrate"])
     if track is not None:
         yield track

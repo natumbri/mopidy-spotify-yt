@@ -1,9 +1,10 @@
-import pytest
-from mopidy import models
 from unittest import mock
 from unittest.mock import patch, sentinel
 
+import pytest
 import spotify
+from mopidy import models
+
 from mopidy_spotify import translator
 
 

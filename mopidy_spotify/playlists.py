@@ -1,8 +1,8 @@
 import logging
 
+import spotify
 from mopidy import backend
 
-import spotify
 from mopidy_spotify import translator, utils
 
 _sp_links = {}

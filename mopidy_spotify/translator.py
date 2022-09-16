@@ -1,11 +1,17 @@
 import collections
 import logging
 
-from mopidy import models
-
 import spotify
+from mopidy import models
+from mopidy_tubeify.data import flatten
+from mopidy_tubeify.yt_matcher import (
+    search_and_get_best_album,
+    search_and_get_best_match,
+)
+from ytmusicapi import YTMusic
 
 logger = logging.getLogger(__name__)
+ytmusic = YTMusic()
 
 
 class memoized:  # noqa N801
@@ -114,11 +120,38 @@ def web_to_album_ref(web_album):
     return models.Ref.album(uri=uri, name=web_album.get("name", uri))
 
 
-def web_to_album_refs(web_albums):
+def web_to_yt_album_refs(web_albums):
+
+    artists_albumtitles = []
+    ytm_albums = []
     for web_album in web_albums:
-        # The extra level here is to also support "saved album objects".
-        web_album = web_album.get("album", web_album)
-        ref = web_to_album_ref(web_album)
+        artists = [artist["name"] for artist in web_album["artists"]]
+        title = web_album["name"]
+        artists_albumtitles.append((artists, title))
+    ytm_albums.extend(
+        [
+            search_and_get_best_album(artist_albumtitle, ytmusic)
+            for artist_albumtitle in artists_albumtitles
+        ]
+    )
+    return [
+        models.Ref.track(
+            uri=f"yt:playlist:{ytm_album['browseId']}", name=ytm_album["title"]
+        )
+        for ytm_album in flatten(ytm_albums)
+        if "browseId" in ytm_album
+    ]
+
+
+def web_to_album_refs(web_albums):
+    web_albums_got = []
+    for web_album in list(web_albums):
+        # The extra level here is to also support "saved track objects".
+        web_albums_got.append(web_album.get("album", web_album))
+
+    refs = web_to_yt_album_refs(web_albums_got)
+
+    for ref in refs:
         if ref is not None:
             yield ref
 
@@ -199,11 +232,42 @@ def web_to_track_ref(web_track, *, check_playable=True):
     return models.Ref.track(uri=uri, name=web_track.get("name", uri))
 
 
+def web_to_yt_track_refs(web_tracks, *, check_playable=True):
+
+    web_tracks = [
+        track for track in web_tracks if valid_web_data(track, "track")
+    ]
+
+    tracks = [
+        {
+            "song_name": track["name"],
+            "song_artists": [artist["name"] for artist in track["artists"]],
+            "song_duration": track["duration_ms"] // 1000,
+            "isrc": None,
+        }
+        for track in web_tracks
+    ]
+
+    ytm_tracks = search_and_get_best_match(tracks, ytmusic)
+
+    return [
+        models.Ref.track(
+            uri=f"yt:video:{ytm_track['videoId']}", name=ytm_track["title"]
+        )
+        for ytm_track in ytm_tracks
+        if "videoId" in ytm_track
+    ]
+
+
 def web_to_track_refs(web_tracks, *, check_playable=True):
+    web_tracks_got = []
     for web_track in web_tracks:
         # The extra level here is to also support "saved track objects".
-        web_track = web_track.get("track", web_track)
-        ref = web_to_track_ref(web_track, check_playable=check_playable)
+        web_tracks_got.append(web_track.get("track", web_track))
+
+    refs = web_to_yt_track_refs(web_tracks_got, check_playable=check_playable)
+
+    for ref in refs:
         if ref is not None:
             yield ref
 

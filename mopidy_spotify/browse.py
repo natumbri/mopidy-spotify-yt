@@ -1,8 +1,8 @@
 import logging
 
+import spotify
 from mopidy import models
 
-import spotify
 from mopidy_spotify import countries, playlists, translator
 from mopidy_spotify.utils import flatten
 

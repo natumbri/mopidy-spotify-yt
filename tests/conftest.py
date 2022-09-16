@@ -1,11 +1,11 @@
 from unittest import mock
 
 import pytest
+import spotify
 from mopidy import backend as backend_api
 from mopidy import models
 
-import spotify
-from mopidy_spotify import backend, library, utils, playlists, web
+from mopidy_spotify import backend, library, playlists, utils, web
 
 
 @pytest.fixture
