@@ -1,4 +1,5 @@
 import collections
+import json
 import logging
 
 import spotify
@@ -124,16 +125,19 @@ def web_to_yt_album_refs(web_albums):
 
     artists_albumtitles = []
     ytm_albums = []
+
     for web_album in web_albums:
         artists = [artist["name"] for artist in web_album["artists"]]
         title = web_album["name"]
         artists_albumtitles.append((artists, title))
+
     ytm_albums.extend(
         [
             search_and_get_best_album(artist_albumtitle, ytmusic)
             for artist_albumtitle in artists_albumtitles
         ]
     )
+
     return [
         models.Ref.track(
             uri=f"yt:playlist:{ytm_album['browseId']}", name=ytm_album["title"]
@@ -250,13 +254,36 @@ def web_to_yt_track_refs(web_tracks, *, check_playable=True):
 
     ytm_tracks = search_and_get_best_match(tracks, ytmusic)
 
-    return [
-        models.Ref.track(
-            uri=f"yt:video:{ytm_track['videoId']}", name=ytm_track["title"]
-        )
-        for ytm_track in ytm_tracks
-        if "videoId" in ytm_track
-    ]
+    trackrefs = []
+    trackrefs.extend(
+        [
+            models.Ref.track(
+                uri=f"yt:video:{ytm_track['videoId']}", name=ytm_track["title"]
+            )
+            for ytm_track in ytm_tracks
+            if "videoId" in ytm_track
+        ]
+    )
+
+    # include ytmusic data for all tracks as preload data in the uri
+    # for the first track.  There is surely a better way to do this.
+    # It breaks the first track in the musicbox_webclient
+    first_track = [
+        track
+        for track in ytm_tracks
+        if f"yt:video:{track['videoId']}" == trackrefs[0].uri
+    ][0]
+
+    trackrefs[0] = models.Ref.track(
+        uri=(
+            f"yt:video:{first_track['videoId']}"
+            f":preload:"
+            f"{json.dumps([track for track in ytm_tracks if track is not None])}"
+        ),
+        name=first_track["title"],
+    )
+
+    return trackrefs
 
 
 def web_to_track_refs(web_tracks, *, check_playable=True):
